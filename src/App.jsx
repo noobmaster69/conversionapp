@@ -265,6 +265,162 @@ const conversionData = {
       lbPerGallon: { name: 'lb/gal (US)', toBase: 119.826 },
     }
   },
+  currency: {
+    name: 'Currency',
+    icon: '💱',
+    note: 'Rates are static examples only',
+    units: {
+      usd: { name: 'US Dollar (USD)', toBase: 1 },
+      eur: { name: 'Euro (EUR)', toBase: 1.08 },
+      gbp: { name: 'British Pound (GBP)', toBase: 1.27 },
+      jpy: { name: 'Japanese Yen (JPY)', toBase: 0.0067 },
+      cny: { name: 'Chinese Yuan (CNY)', toBase: 0.14 },
+      inr: { name: 'Indian Rupee (INR)', toBase: 0.012 },
+      cad: { name: 'Canadian Dollar (CAD)', toBase: 0.74 },
+      aud: { name: 'Australian Dollar (AUD)', toBase: 0.65 },
+      chf: { name: 'Swiss Franc (CHF)', toBase: 1.13 },
+      krw: { name: 'South Korean Won (KRW)', toBase: 0.00075 },
+    }
+  },
+  fuelEconomy: {
+    name: 'Fuel Economy',
+    icon: '⛽',
+    units: {
+      mpgUS: { name: 'MPG (US)', toBase: 1 },
+      mpgUK: { name: 'MPG (UK)', toBase: 0.8327 },
+      kmPerL: { name: 'km/L', toBase: 2.352 },
+      l100km: { name: 'L/100km', toBase: 1 },
+    },
+    customConvert: (value, from, to) => {
+      // Convert everything to MPG (US) first, then to target
+      // Special handling for L/100km which is inverse
+      const toMpgUS = {
+        mpgUS: (v) => v,
+        mpgUK: (v) => v * 0.8327,
+        kmPerL: (v) => v * 2.352,
+        l100km: (v) => v === 0 ? 0 : 235.215 / v,
+      };
+      const fromMpgUS = {
+        mpgUS: (v) => v,
+        mpgUK: (v) => v / 0.8327,
+        kmPerL: (v) => v / 2.352,
+        l100km: (v) => v === 0 ? 0 : 235.215 / v,
+      };
+      const mpgUS = toMpgUS[from](value);
+      return fromMpgUS[to](mpgUS);
+    }
+  },
+  cooking: {
+    name: 'Cooking',
+    icon: '🍳',
+    note: 'Weights vary by ingredient',
+    units: {
+      cupFlour: { name: 'Cup Flour (120g)', toBase: 120 },
+      cupSugar: { name: 'Cup Sugar (200g)', toBase: 200 },
+      cupButter: { name: 'Cup Butter (227g)', toBase: 227 },
+      cupRice: { name: 'Cup Rice (185g)', toBase: 185 },
+      cupOats: { name: 'Cup Oats (90g)', toBase: 90 },
+      tbsp: { name: 'Tablespoon (15g)', toBase: 15 },
+      tsp: { name: 'Teaspoon (5g)', toBase: 5 },
+      gram: { name: 'Grams (g)', toBase: 1 },
+      ounce: { name: 'Ounces (oz)', toBase: 28.35 },
+    }
+  },
+  numberSystems: {
+    name: 'Number Base',
+    icon: '🔢',
+    units: {
+      decimal: { name: 'Decimal (Base 10)' },
+      binary: { name: 'Binary (Base 2)' },
+      octal: { name: 'Octal (Base 8)' },
+      hexadecimal: { name: 'Hexadecimal (Base 16)' },
+    },
+    customConvert: (value, from, to) => {
+      const bases = { decimal: 10, binary: 2, octal: 8, hexadecimal: 16 };
+      const inputStr = String(value).trim().toUpperCase();
+      let decimal;
+      try {
+        decimal = parseInt(inputStr, bases[from]);
+        if (isNaN(decimal)) return 'Invalid';
+      } catch {
+        return 'Invalid';
+      }
+      return decimal.toString(bases[to]).toUpperCase();
+    },
+    isTextBased: true
+  },
+  color: {
+    name: 'Color',
+    icon: '🎨',
+    units: {
+      hex: { name: 'HEX (#RRGGBB)' },
+      rgb: { name: 'RGB (r, g, b)' },
+      hsl: { name: 'HSL (h, s%, l%)' },
+    },
+    customConvert: (value, from, to) => {
+      const inputStr = String(value).trim();
+      let r, g, b;
+
+      // Parse input to RGB
+      if (from === 'hex') {
+        const hex = inputStr.replace('#', '');
+        if (hex.length !== 6) return 'Invalid';
+        r = parseInt(hex.substr(0, 2), 16);
+        g = parseInt(hex.substr(2, 2), 16);
+        b = parseInt(hex.substr(4, 2), 16);
+      } else if (from === 'rgb') {
+        const match = inputStr.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (!match) return 'Invalid';
+        [, r, g, b] = match.map(Number);
+      } else if (from === 'hsl') {
+        const match = inputStr.match(/(\d+)\s*,\s*(\d+)%?\s*,\s*(\d+)%?/);
+        if (!match) return 'Invalid';
+        const [, h, s, l] = match.map(Number);
+        // HSL to RGB conversion
+        const sNorm = s / 100, lNorm = l / 100;
+        const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm;
+        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        const m = lNorm - c / 2;
+        let rp, gp, bp;
+        if (h < 60) [rp, gp, bp] = [c, x, 0];
+        else if (h < 120) [rp, gp, bp] = [x, c, 0];
+        else if (h < 180) [rp, gp, bp] = [0, c, x];
+        else if (h < 240) [rp, gp, bp] = [0, x, c];
+        else if (h < 300) [rp, gp, bp] = [x, 0, c];
+        else [rp, gp, bp] = [c, 0, x];
+        r = Math.round((rp + m) * 255);
+        g = Math.round((gp + m) * 255);
+        b = Math.round((bp + m) * 255);
+      }
+
+      if (isNaN(r) || isNaN(g) || isNaN(b)) return 'Invalid';
+
+      // Convert RGB to target format
+      if (to === 'hex') {
+        return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+      } else if (to === 'rgb') {
+        return `${r}, ${g}, ${b}`;
+      } else if (to === 'hsl') {
+        const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
+        const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
+        const l = (max + min) / 2;
+        let h = 0, s = 0;
+        if (max !== min) {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          switch (max) {
+            case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)); break;
+            case gNorm: h = ((bNorm - rNorm) / d + 2); break;
+            case bNorm: h = ((rNorm - gNorm) / d + 4); break;
+          }
+          h *= 60;
+        }
+        return `${Math.round(h)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%`;
+      }
+      return 'Invalid';
+    },
+    isTextBased: true
+  },
 };
 
 // Physics formulas
@@ -5288,18 +5444,34 @@ function App() {
   };
 
   const saveToHistory = () => {
-    if (inputValue && result !== '' && !isNaN(result)) {
+    const isValidResult = categoryData?.isTextBased ? (result !== '' && result !== 'Invalid') : (!isNaN(result) && result !== '');
+    if (inputValue && isValidResult) {
       const entry = {
         id: Date.now(),
         category: categoryData.name,
         from: `${inputValue} ${units[fromUnit].name}`,
-        to: `${formatResult(result)} ${units[toUnit].name}`,
+        to: `${categoryData?.isTextBased ? String(result) : formatResult(result)} ${units[toUnit].name}`,
       };
       setHistory(prev => [entry, ...prev.slice(0, 9)]);
     }
   };
 
   const clearHistory = () => setHistory([]);
+
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = async () => {
+    if (result !== '' && !isNaN(result) && !categoryData?.isTextBased) {
+      const text = `${formatResult(result)} ${units[toUnit]?.name || ''}`;
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } else if (categoryData?.isTextBased && result) {
+      await navigator.clipboard.writeText(String(result));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
 
   return (
     <div className="app">
@@ -5376,6 +5548,7 @@ function App() {
             <div className="converter-header">
               <span className="converter-icon">{categoryData.icon}</span>
               <span>{categoryData.name} Conversion</span>
+              {categoryData.note && <span className="converter-note">{categoryData.note}</span>}
             </div>
 
             <div className="converter-body">
@@ -5383,10 +5556,10 @@ function App() {
                 <label>From</label>
                 <div className="input-row">
                   <input
-                    type="number"
+                    type={categoryData?.isTextBased ? 'text' : 'number'}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    placeholder="Enter value"
+                    placeholder={categoryData?.isTextBased ? (category === 'color' ? '#FF5500 or 255, 85, 0' : 'Enter value') : 'Enter value'}
                     className="value-input"
                   />
                   <select
@@ -5411,8 +5584,9 @@ function App() {
               <div className="input-group">
                 <label>To</label>
                 <div className="input-row">
-                  <div className="result-display">
-                    {formatResult(result)}
+                  <div className="result-display" onClick={copyToClipboard} style={{ cursor: 'pointer', position: 'relative' }}>
+                    {categoryData?.isTextBased ? String(result) : formatResult(result)}
+                    {copied && <span className="copy-toast">Copied!</span>}
                   </div>
                   <select
                     value={toUnit}
@@ -5424,11 +5598,12 @@ function App() {
                     ))}
                   </select>
                 </div>
+                <span className="copy-hint">Click result to copy</span>
               </div>
 
-              {inputValue && result !== '' && !isNaN(result) && (
+              {inputValue && result !== '' && (categoryData?.isTextBased || !isNaN(result)) && (
                 <div className="formula">
-                  {inputValue} {units[fromUnit]?.name} = {formatResult(result)} {units[toUnit]?.name}
+                  {inputValue} {units[fromUnit]?.name} = {categoryData?.isTextBased ? String(result) : formatResult(result)} {units[toUnit]?.name}
                 </div>
               )}
 
